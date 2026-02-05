@@ -1069,6 +1069,21 @@
                     </div>
                 </div>
 
+                <!-- Export per Commerciale -->
+                <div style="background: linear-gradient(135deg, var(--status-lead-ok), #9BD68C); border-radius: 16px; padding: 20px; margin-bottom: 30px;">
+                    <h3 style="color: var(--text-dark); margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        Export Lead per Commerciale
+                    </h3>
+                    <p style="color: var(--text-dark); margin-bottom: 20px; opacity: 0.8;">Esporta i lead assegnati a ogni commerciale in formato CSV pronto per WhatsApp/Email</p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;" id="commercial-export-grid">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+
                 <!-- Export Actions -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
                     <button class="btn-success" onclick="exportLeadOk()">
@@ -1335,12 +1350,12 @@
         // ============================================
         const commerciali = [
             "Deidda",
-            "Palmas", 
-            "Poma",
+            "Palmas",
             "Pesapane",
+            "Poma",
             "Congiu",
             "Mascia",
-            "Serra",
+            "Serra"
         ];
         // ============================================
 
@@ -2236,7 +2251,98 @@
                 `;
             });
             pipelineStatsContainer.innerHTML = pipelineHTML;
+            
+            // Render Commercial Export Grid
+            renderCommercialExportGrid();
         }
+
+        function renderCommercialExportGrid() {
+            const commercialGrid = document.getElementById('commercial-export-grid');
+            
+            let gridHTML = '';
+            commerciali.forEach(commerciale => {
+                const leadPerCommerciale = leads.filter(lead => lead.commerciale === commerciale);
+                const leadOkCount = leadPerCommerciale.filter(lead => lead.stato === 'lead-ok').length;
+                const totalCount = leadPerCommerciale.length;
+                
+                gridHTML += `
+                    <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 15px; backdrop-filter: blur(10px);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h4 style="margin: 0; color: var(--text-dark);">${commerciale}</h4>
+                            <div style="background: rgba(255,255,255,0.4); padding: 4px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600;">
+                                ${leadOkCount} Lead Ok
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 12px; font-size: 0.9em; color: var(--text-dark); opacity: 0.8;">
+                            Totale assegnati: <strong>${totalCount}</strong>
+                        </div>
+                        <button onclick="exportForCommercial('${commerciale}')" 
+                                style="width: 100%; background: rgba(255,255,255,0.3); color: var(--text-dark); border: 1px solid rgba(255,255,255,0.4); padding: 10px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 6px;"
+                                onmouseover="this.style.background='rgba(255,255,255,0.5)'"
+                                onmouseout="this.style.background='rgba(255,255,255,0.3)'">
+                            <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            Esporta Lead Ok
+                        </button>
+                        ${totalCount > 0 ? `
+                            <button onclick="exportAllForCommercial('${commerciale}')" 
+                                    style="width: 100%; background: rgba(255,255,255,0.15); color: var(--text-dark); border: 1px solid rgba(255,255,255,0.3); padding: 8px 12px; border-radius: 8px; cursor: pointer; margin-top: 8px; font-size: 0.85em; transition: all 0.3s ease;"
+                                    onmouseover="this.style.background='rgba(255,255,255,0.25)'"
+                                    onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+                                Esporta Tutti i Lead
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            
+            commercialGrid.innerHTML = gridHTML;
+        }
+
+        window.exportForCommercial = function(commerciale) {
+            const leadOkForCommercial = leads.filter(lead => 
+                lead.commerciale === commerciale && lead.stato === 'lead-ok'
+            );
+            
+            if (leadOkForCommercial.length === 0) {
+                alert(`Nessun Lead Ok trovato per ${commerciale}`);
+                return;
+            }
+            
+            const csv = `LEAD OK PER ${commerciale.toUpperCase()} - ${new Date().toLocaleDateString()}\n\n` +
+                       `Nome,Cognome,Telefono,Email,Note,Data Recupero,Ora Recupero\n` + 
+                       leadOkForCommercial.map(lead => {
+                           const dataRecupero = (lead.attivita || []).find(a => a.stato === 'lead-ok')?.timestamp || '';
+                           const dateObj = dataRecupero ? new Date(dataRecupero) : new Date();
+                           return `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},"${lead.note || ''}",${dateObj.toLocaleDateString()},${dateObj.toLocaleTimeString()}`;
+                       }).join('\n');
+            
+            downloadCSV(csv, `lead-ok-${commerciale.replace(' ', '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.csv`);
+            
+            alert(`Export completato per ${commerciale}!\n\n${leadOkForCommercial.length} Lead Ok esportati`);
+        };
+
+        window.exportAllForCommercial = function(commerciale) {
+            const allLeadsForCommercial = leads.filter(lead => lead.commerciale === commerciale);
+            
+            if (allLeadsForCommercial.length === 0) {
+                alert(`Nessun lead trovato per ${commerciale}`);
+                return;
+            }
+            
+            const csv = `TUTTI I LEAD PER ${commerciale.toUpperCase()} - ${new Date().toLocaleDateString()}\n\n` +
+                       `Nome,Cognome,Telefono,Email,Stato,Note,Ultima Attività\n` + 
+                       allLeadsForCommercial.map(lead => {
+                           const ultimaAttivita = (lead.attivita || []).length > 0 ? 
+                               new Date((lead.attivita || [])[lead.attivita.length - 1].timestamp).toLocaleDateString() : 'N/A';
+                           return `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},${statusConfig[lead.stato].label},"${lead.note || ''}",${ultimaAttivita}`;
+                       }).join('\n');
+            
+            downloadCSV(csv, `tutti-lead-${commerciale.replace(' ', '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.csv`);
+            
+            alert(`Export completo per ${commerciale}!\n\n${allLeadsForCommercial.length} lead totali esportati`);
+        };
 
         // Export functions
         window.exportLeadOk = function() {
